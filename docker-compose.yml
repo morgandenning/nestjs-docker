@@ -1,0 +1,45 @@
+version: '3.8'
+
+x-shared-envs:
+  environment: &envs
+    POSTGRES_USER: "postgres"
+    POSTGRES_PASSWORD: "password"
+    POSTGRES_DB: "postgres"
+
+services:
+  app:
+    image: grntovspyn/app:latest
+    build:
+      context: .
+    environment:
+      POSTGRES_HOST: "postgres"
+      <<: *envs
+    volumes:
+      - ${PWD-.}/src/app:/app
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:14.5-alpine
+    environment:
+      <<: *envs
+    ports:
+      - "127.0.0.1:54321:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-postgres}"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7.0-alpine
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 10s
+      retries: 5
